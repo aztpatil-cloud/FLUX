@@ -1,1 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FLUX — Creative Workspace</title>
+  <meta name="description" content="FLUX is a creative workspace for writing scripts, planning visual ideas, and organizing content.">
+  <style>
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      background:#0b0c10;
+      color:#eee;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif
+    }
+    main{
+      max-width:900px;
+      margin:0 auto;
+      padding:80px 24px
+    }
+    nav{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:110px
+    }
+    .logo{
+      font-weight:800;
+      letter-spacing:.18em;
+      font-size:20px
+    }
+    .tag{
+      color:#999;
+      font-size:14px
+    }
+    section{max-width:700px}
+    h1{
+      font-size:clamp(48px,8vw,82px);
+      line-height:.95;
+      margin:0 0 28px;
+      letter-spacing:-.05em
+    }
+    p{
+      font-size:18px;
+      line-height:1.7;
+      color:#aaa;
+      max-width:620px
+    }
+    .cards{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:14px;
+      margin-top:55px
+    }
+    .card{
+      border:1px solid #292b31;
+      border-radius:14px;
+      padding:22px;
+      background:#111318
+    }
+    .card b{
+      display:block;
+      margin-bottom:8px
+    }
+    .card span{
+      color:#888;
+      font-size:14px;
+      line-height:1.5
+    }
+    @media(max-width:650px){
+      main{padding:40px 20px}
+      .cards{grid-template-columns:1fr}
+      nav{margin-bottom:80px}
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <nav>
+      <div class="logo">FLUX</div>
+      <div class="tag">Creative workspace</div>
+    </nav>
 
+    <section>
+      <h1>Turn ideas into content.</h1>
+
+      <p>
+        FLUX is a personal creative workspace for writing scripts,
+        planning visual ideas, and organizing content projects in one place.
+      </p>
+
+      <div class="cards">
+        <div class="card">
+          <b>Scripts</b>
+          <span>Write and format screenplays and content scripts.</span>
+        </div>
+
+        <div class="card">
+          <b>Visual Ideas</b>
+          <span>Collect and develop visual references for your content.</span>
+        </div>
+
+        <div class="card">
+          <b>Projects</b>
+          <span>Keep creative work organized from idea to finished piece.</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
