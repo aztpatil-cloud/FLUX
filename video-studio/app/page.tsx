@@ -26,6 +26,7 @@ const formatDate = (s: string) => new Date(s).toLocaleDateString(undefined, { mo
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
+  const [previewMode, setPreviewMode] = useState(false);
   const [tab, setTab] = useState<Tab>("Overview");
   const [projects, setProjects] = useState<Project[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -83,7 +84,7 @@ export default function Home() {
   };
 
   const createProject = async () => {
-    if (!supabase || !user) return null;
+    if (!supabase || !user) { setNotice("Sign in to create and save projects."); return null; }
     const title = window.prompt("Name this video project", "New reference study");
     if (!title?.trim()) return null;
     const { data, error } = await supabase.from("video_projects").insert({ owner_id: user.id, title: title.trim() }).select().single();
@@ -92,7 +93,8 @@ export default function Home() {
   };
 
   const uploadFiles = async (files: FileList | null) => {
-    if (!supabase || !user || !files?.length) return;
+    if (!user) { setNotice("Sign in to upload files to your workspace."); return; }
+    if (!supabase || !files?.length) return;
     setUploading(true); setNotice("");
     let projectId = selectedProject || projects[0]?.id;
     if (!projectId) {
@@ -116,15 +118,30 @@ export default function Home() {
     if (fileInput.current) fileInput.current.value = "";
   };
 
-  const signOut = async () => { await supabase?.auth.signOut(); setUser(null); };
+  const signOut = async () => {
+    if (!user) { setPreviewMode(false); setNotice(""); setProjects([]); setAssets([]); setStyles([]); return; }
+    await supabase?.auth.signOut(); setUser(null); setPreviewMode(false);
+  };
   const filteredAssets = useMemo(() => assets.filter(a => a.filename.toLowerCase().includes(query.toLowerCase())), [assets, query]);
   const recentProjects = projects.slice(0, 4);
+  const openPreview = () => {
+    const now = new Date().toISOString();
+    setPreviewMode(true);
+    setProjects([{ id: "preview-project-1", title: "Urban editorial reel", status: "draft", created_at: now, updated_at: now }]);
+    setAssets([
+      { id: "preview-asset-1", project_id: "preview-project-1", filename: "reference-reel.mp4", asset_type: "reference_video", mime_type: "video/mp4", size_bytes: 18400000, processing_status: "awaiting_analysis", created_at: now },
+      { id: "preview-asset-2", project_id: "preview-project-1", filename: "city-motion-stock.mov", asset_type: "stock_video", mime_type: "video/quicktime", size_bytes: 32600000, processing_status: "uploaded", created_at: now }
+    ]);
+    setStyles([{ id: "preview-style-1", name: "Cinematic urban cuts", category: "Reel style", description: "A sample style profile showing pacing, speed changes and warm contrast.", tags: ["Fast pacing", "Speed ramps", "Warm contrast"] }]);
+    setUsage({ input: 0, output: 0, cost: 0 });
+    setNotice("");
+  };
 
   if (!loading && !isSupabaseConfigured) return <main className="setup-screen"><div className="setup-card"><div className="brand-mark"><Film size={22}/></div><p className="eyebrow">FLUX / VIDEO STUDIO</p><h1>Connect your workspace</h1><p className="muted">Add the Supabase URL and publishable key to this app's environment variables to activate sign-in, projects and uploads.</p><pre>NEXT_PUBLIC_SUPABASE_URL=…{"\n"}NEXT_PUBLIC_SUPABASE_ANON_KEY=…</pre></div></main>;
 
   if (loading) return <main className="loading-screen"><div className="brand-mark"><Film size={22}/></div><span>Loading Flux Studio…</span></main>;
 
-  if (!user) return <main className="login-screen"><div className="login-card"><div className="brand-mark"><Film size={22}/></div><p className="eyebrow">FLUX / VIDEO STUDIO</p><h1>Your creative reference lab.</h1><p className="muted">Sign in to manage reference reels, footage and editing styles in one workspace.</p><form onSubmit={sendMagicLink}><label htmlFor="email">Email address</label><input id="email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="primary-btn full" disabled={sendingLink}>{sendingLink ? "Sending link…" : "Continue with email"} <ArrowUpRight size={16}/></button></form>{notice && <p className="notice">{notice}</p>}<p className="tiny muted">A secure sign-in link will be sent to your inbox.</p></div></main>;
+  if (!user && !previewMode) return <main className="login-screen"><div className="login-card"><div className="brand-mark"><Film size={22}/></div><p className="eyebrow">FLUX / VIDEO STUDIO</p><h1>Your creative reference lab.</h1><p className="muted">Sign in to manage reference reels, footage and editing styles in one workspace.</p><form onSubmit={sendMagicLink}><label htmlFor="email">Email address</label><input id="email" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" required/><button className="primary-btn full" disabled={sendingLink}>{sendingLink ? "Sending link…" : "Continue with email"} <ArrowUpRight size={16}/></button></form><button className="text-btn" type="button" onClick={openPreview}>Preview dashboard <ArrowUpRight size={14}/></button>{notice && <p className="notice">{notice}</p>}<p className="tiny muted">A secure sign-in link will be sent to your inbox.</p></div></main>;
 
   return <main className="app-shell">
     <aside className={`sidebar ${mobileNav ? "open" : ""}`}>
@@ -132,12 +149,13 @@ export default function Home() {
       <div className="workspace-switch"><div className="workspace-avatar">F</div><div><strong>Flux Workspace</strong><span>Personal workspace</span></div><ChevronDown size={15}/></div>
       <p className="nav-caption">WORKSPACE</p>
       <nav>{nav.map(item=>{const Icon=item.icon;return <button key={item.label} className={`nav-item ${tab===item.label?"active":""}`} onClick={()=>{setTab(item.label);setMobileNav(false);}}><Icon size={17}/><span>{item.label}</span>{item.note&&<small>{item.note}</small>}</button>})}</nav>
-      <div className="sidebar-bottom"><div className="engine-card"><div className="engine-top"><span className="status-dot"></span><strong>Analysis engine</strong></div><p>Worker connection pending</p><span className="engine-tag">SETUP NEXT</span></div><div className="user-row"><div className="user-avatar">{(user.email||"F").slice(0,1).toUpperCase()}</div><div className="user-copy"><strong>{user.email}</strong><span>Signed in</span></div><button className="icon-btn" title="Sign out" onClick={signOut}><LogOut size={16}/></button></div></div>
+      <div className="sidebar-bottom"><div className="engine-card"><div className="engine-top"><span className="status-dot"></span><strong>Analysis engine</strong></div><p>Worker connection pending</p><span className="engine-tag">SETUP NEXT</span></div><div className="user-row"><div className="user-avatar">{(user?.email||"P").slice(0,1).toUpperCase()}</div><div className="user-copy"><strong>{user?.email || "Preview mode"}</strong><span>{user ? "Signed in" : "Read-only preview"}</span></div><button className="icon-btn" title={user ? "Sign out" : "Back to sign in"} onClick={signOut}>{user ? <LogOut size={16}/> : <X size={16}/>}</button></div></div>
     </aside>
     {mobileNav&&<button className="mobile-scrim" onClick={()=>setMobileNav(false)} aria-label="Close navigation"/>}
     <section className="main-panel">
-      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={()=>setMobileNav(true)}><Menu size={19}/></button><span className="breadcrumb">Workspace</span><span className="crumb-slash">/</span><strong>{tab}</strong></div><div className="topbar-right"><span className="api-status"><span className="status-dot"></span> Supabase connected</span><button className="outline-btn" onClick={createProject}><Plus size={15}/> New project</button></div></header>
+      <header className="topbar"><div className="topbar-left"><button className="icon-btn mobile-menu" onClick={()=>setMobileNav(true)}><Menu size={19}/></button><span className="breadcrumb">Workspace</span><span className="crumb-slash">/</span><strong>{tab}</strong></div><div className="topbar-right"><span className="api-status"><span className="status-dot"></span> {user ? "Supabase connected" : "Preview only"}</span><button className="outline-btn" onClick={user ? createProject : () => setNotice("Sign in to create and save projects.")}><Plus size={15}/> New project</button></div></header>
       <div className="content-wrap">
+        {previewMode && !user && <div className="worker-note"><div className="worker-note-icon"><Film size={18}/></div><div><strong>Preview mode — sample content only</strong><p>Explore the dashboard layout. Sign in to create projects and upload your own files.</p></div><button className="outline-btn" onClick={()=>setPreviewMode(false)}>Sign in</button></div>}
         {notice && <div className="toast"><span>{notice}</span><button onClick={()=>setNotice("")}><X size={15}/></button></div>}
         {tab==="Overview" && <>
           <div className="page-heading"><div><p className="eyebrow">YOUR CREATIVE WORKSPACE</p><h1>Make references <em>work.</em></h1><p className="muted">Study the edits you love. Build a reusable creative library.</p></div><button className="primary-btn" onClick={()=>setTab("Reference Lab")}><CloudUpload size={16}/> Add reference</button></div>
@@ -145,8 +163,8 @@ export default function Home() {
           <div className="overview-grid"><div className="panel-card"><div className="panel-heading"><div><h2>Recent projects</h2><p>Your latest video studies</p></div><button className="text-btn" onClick={()=>setTab("Reference Lab")}>View all <ArrowUpRight size={14}/></button></div>{recentProjects.length===0?<div className="empty-state"><div className="empty-icon"><FolderOpen size={22}/></div><strong>No projects yet</strong><p>Create a project to start collecting references and footage.</p><button className="outline-btn" onClick={createProject}><Plus size={15}/> Create project</button></div>:<div className="project-list">{recentProjects.map(p=><button className="project-row" key={p.id} onClick={()=>{setSelectedProject(p.id);setTab("Reference Lab");}}><div className="project-thumb"><Film size={17}/></div><div className="project-info"><strong>{p.title}</strong><span>Updated {formatDate(p.updated_at)}</span></div><span className={`pill ${p.status}`}>{p.status}</span><ArrowUpRight size={15}/></button>)}</div>}</div>
           <div className="panel-card quick-panel"><div className="panel-heading"><div><h2>Start creating</h2><p>Choose your next step</p></div><Sparkles size={18}/></div><button className="quick-action" onClick={()=>setTab("Reference Lab")}><div className="quick-icon"><Upload size={17}/></div><div><strong>Analyze a reference</strong><span>Upload a reel to break it down</span></div><ArrowUpRight size={15}/></button><button className="quick-action" onClick={()=>setTab("Style Library")}><div className="quick-icon"><Library size={17}/></div><div><strong>Explore style library</strong><span>Browse saved creative patterns</span></div><ArrowUpRight size={15}/></button><div className="coming-card"><div className="coming-icon"><AudioLines size={17}/></div><div><strong>Editing engine</strong><span>Automated timeline and rendering are next.</span></div><span className="pill soon">SOON</span></div></div></div>
         </>}
-        {tab==="Reference Lab" && <><div className="page-heading"><div><p className="eyebrow">REFERENCE LAB</p><h1>Break down the <em>reference.</em></h1><p className="muted">Collect reference reels and stock footage. Analysis worker is the next integration.</p></div><div className="heading-actions"><select className="select-control" value={selectedType} onChange={e=>setSelectedType(e.target.value as "reference_video"|"stock_video")}><option value="reference_video">Reference video</option><option value="stock_video">Stock footage</option></select><button className="primary-btn" onClick={()=>fileInput.current?.click()} disabled={uploading}><Upload size={16}/>{uploading?"Uploading…":"Upload files"}</button><input ref={fileInput} type="file" accept="video/*,image/*,audio/*" multiple hidden onChange={e=>uploadFiles(e.target.files)}/></div></div>
-          <div className="upload-zone" onClick={()=>fileInput.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();uploadFiles(e.dataTransfer.files);}}><div className="upload-symbol"><CloudUpload size={25}/></div><strong>{uploading?"Uploading your files…":"Drop reference reels or stock footage here"}</strong><span>MP4, MOV, WEBM, JPG, PNG, MP3 · up to 500 MB per file</span><button className="text-btn" type="button">Browse files</button></div>
+        {tab==="Reference Lab" && <><div className="page-heading"><div><p className="eyebrow">REFERENCE LAB</p><h1>Break down the <em>reference.</em></h1><p className="muted">Collect reference reels and stock footage. Analysis worker is the next integration.</p></div><div className="heading-actions"><select className="select-control" value={selectedType} onChange={e=>setSelectedType(e.target.value as "reference_video"|"stock_video")}><option value="reference_video">Reference video</option><option value="stock_video">Stock footage</option></select><button className="primary-btn" onClick={()=>user ? fileInput.current?.click() : setNotice("Sign in to upload files.")} disabled={!user || uploading}><Upload size={16}/>{uploading?"Uploading…":user ? "Upload files" : "Sign in to upload"}</button><input ref={fileInput} type="file" accept="video/*,image/*,audio/*" multiple hidden onChange={e=>uploadFiles(e.target.files)}/></div></div>
+          <div className="upload-zone" onClick={()=>user ? fileInput.current?.click() : setNotice("Sign in to upload files.")} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();user ? uploadFiles(e.dataTransfer.files) : setNotice("Sign in to upload files.");}}><div className="upload-symbol"><CloudUpload size={25}/></div><strong>{uploading?"Uploading your files…":"Drop reference reels or stock footage here"}</strong><span>MP4, MOV, WEBM, JPG, PNG, MP3 · up to 500 MB per file</span><button className="text-btn" type="button">Browse files</button></div>
           <div className="section-toolbar"><div><h2>Your assets</h2><p>{assets.length} files in this workspace</p></div><div className="search-box"><Search size={15}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search assets"/></div></div>
           {filteredAssets.length===0?<div className="panel-card empty-state large-empty"><div className="empty-icon"><Film size={23}/></div><strong>No assets uploaded yet</strong><p>Upload your first reference reel. We'll add scene analysis, color analysis and editing breakdown here.</p></div>:<div className="asset-table"><div className="asset-table-head"><span>FILE</span><span>TYPE</span><span>SIZE</span><span>STATUS</span><span>ADDED</span></div>{filteredAssets.map(a=><div className="asset-row" key={a.id}><div className="asset-name"><div className="asset-icon"><Film size={16}/></div><strong>{a.filename}</strong></div><span className="muted">{a.asset_type.replace("_"," ")}</span><span className="muted">{formatSize(a.size_bytes)}</span><span><span className="pill uploaded">{a.processing_status}</span></span><span className="muted">{formatDate(a.created_at)}</span></div>)}</div>}
           <div className="worker-note"><div className="worker-note-icon"><BrainCircuit size={18}/></div><div><strong>Analysis worker not connected yet</strong><p>Uploads are stored securely in Supabase. Next we'll connect FFmpeg scene extraction and Claude analysis to turn each reference into a timestamped editing breakdown.</p></div></div>
